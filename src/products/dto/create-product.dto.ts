@@ -1,5 +1,3 @@
-/* eslint-disable prettier/prettier */
-
 import {
   IsArray,
   IsIn,
@@ -41,4 +39,3 @@ export class CreateProductDto {
   @IsIn(['MEN', 'WOMEN', 'KID', 'UNISEX'])
   gender: string;
 }
-
