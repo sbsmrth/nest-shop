@@ -9,7 +9,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { validate as isUUID } from 'uuid';
 import { ProductImage } from './entities';
@@ -23,6 +23,8 @@ export class ProductsService {
 
     @InjectRepository(ProductImage)
     private readonly productImageRepository: Repository<ProductImage>,
+
+    private readonly dataSource: DataSource,
   ) {}
   async create(createProductDto: CreateProductDto) {
     try {
@@ -83,20 +85,42 @@ export class ProductsService {
   }
 
   async update(id: string, updateProductDto: UpdateProductDto) {
+    const { images, ...productDetails } = updateProductDto;
+
     const product = await this.productRepository.preload({
       id,
-      ...updateProductDto,
-      images: [],
-    }); // find the product by id and update it with the new data
+      ...productDetails,
+    }); // find the product by id and update it with the new data, doesn't include relations
 
     if (!product) {
       throw new NotFoundException(`Product with id '${id}' not found`);
     }
 
+    // Query runners are used to manage transactions and execute different queries
+    const queryRunner = this.dataSource.createQueryRunner();
+
+    await queryRunner.connect(); // connect to the database
+
+    await queryRunner.startTransaction();
+
     try {
-      await this.productRepository.save(product); // save the updated product to the database
-      return product;
+      if (images) {
+        await queryRunner.manager.delete(ProductImage, { product: { id } }); // delete all images of the product
+
+        product.images = images.map((image) =>
+          this.productImageRepository.create({ url: image }),
+        ); // create new images for the product
+      }
+
+      await queryRunner.manager.save(product); // try to save the product with the new images (not DB yet)
+      await queryRunner.commitTransaction(); // commit the transaction if everything is ok (save to DB)
+      await queryRunner.release();
+
+      return this.findOne(id); // to return also the images
     } catch (error) {
+      await queryRunner.rollbackTransaction(); // rollback the transaction if something goes wrong
+      await queryRunner.release();
+
       this.handleDBExceptions(error);
     }
   }
