@@ -41,9 +41,12 @@ export class Product {
 
   @OneToMany(() => ProductImage, (productImage) => productImage.product, {
     cascade: true,
+    eager: true, // Retrieves images automatically when fetching a product using find*
   })
+  images?: ProductImage[];
   // One product can have many images
-  images?: ProductImage;
+  // {cascade: true} if a product is deleted, its images are also deleted
+  // Indeed is preferred to avoid deleting products because of referential integrity issues
 
   @BeforeInsert()
   checkSlugBeforeInsert() {

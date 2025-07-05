@@ -12,6 +12,7 @@ import { Product } from './entities/product.entity';
 import { Repository } from 'typeorm';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { validate as isUUID } from 'uuid';
+import { ProductImage } from './entities';
 
 @Injectable()
 export class ProductsService {
@@ -19,12 +20,24 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+
+    @InjectRepository(ProductImage)
+    private readonly productImageRepository: Repository<ProductImage>,
   ) {}
   async create(createProductDto: CreateProductDto) {
     try {
-      const product = this.productRepository.create(createProductDto); // Create a new product instance
-      await this.productRepository.save(product); // Save the product to the database
-      return product;
+      const { images = [], ...productDetails } = createProductDto;
+
+      const product = this.productRepository.create({
+        ...productDetails,
+        images: images.map((image) =>
+          this.productImageRepository.create({ url: image }),
+        ), // it links images to the product automatically
+      }); // Create a new product instance
+
+      await this.productRepository.save(product); // Save the product and its images to the database
+
+      return { ...product, images }; // Return the product with its images
     } catch (error) {
       this.handleDBExceptions(error);
     }
@@ -36,6 +49,9 @@ export class ProductsService {
     const products = await this.productRepository.find({
       take: limit,
       skip: offset,
+      relations: {
+        images: true,
+      },
     });
 
     return products;
@@ -48,12 +64,14 @@ export class ProductsService {
     if (isUUID(term)) {
       product = await this.productRepository.findOneBy({ id: term });
     } else {
-      const queryBuilder = this.productRepository.createQueryBuilder();
+      // When using the query builder, is neccesary to use leftJoinAndSelect to include relations
+      const queryBuilder = this.productRepository.createQueryBuilder('prod'); // alias for the table (products)
       product = await queryBuilder
         .where('UPPER(title) = :title or slug = :slug', {
           title: term.toUpperCase(),
           slug: term.toLowerCase(),
         })
+        .leftJoinAndSelect('prod.images', 'images') // 'the second parameter is an alias necessary for another join for example
         .getOne();
     }
 
@@ -68,6 +86,7 @@ export class ProductsService {
     const product = await this.productRepository.preload({
       id,
       ...updateProductDto,
+      images: [],
     }); // find the product by id and update it with the new data
 
     if (!product) {
