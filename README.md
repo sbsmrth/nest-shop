@@ -31,6 +31,18 @@
 $ yarn install
 ```
 
+## Run container
+
+```
+docker compose up -d
+```
+
+## Execute seed
+
+```
+GET /api/seed
+```
+
 ## Compile and run the project
 
 ```bash
