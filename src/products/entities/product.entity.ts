@@ -40,7 +40,7 @@ export class Product {
   tags: string[];
 
   @OneToMany(() => ProductImage, (productImage) => productImage.product, {
-    cascade: true,
+    cascade: true, // Works for updates on instances of Product, not with repository methods, onDelete: 'CASCADE is necessary in ProductImage
     eager: true, // Retrieves images automatically when fetching a product using find*
   })
   images?: ProductImage[];

@@ -126,9 +126,19 @@ export class ProductsService {
   }
 
   async remove(id: string) {
-    await this.productRepository.findOneBy({ id });
+    const product = await this.findOne(id);
 
-    await this.productRepository.delete(id);
+    await this.productRepository.remove(product);
+  }
+
+  async deleteAllProducts() {
+    // dev only method to delete all products and their images therefore
+    const query = this.productRepository.createQueryBuilder('product');
+    try {
+      return await query.delete().where({}).execute(); // delete all products
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
   }
 
   private handleDBExceptions(error: any) {

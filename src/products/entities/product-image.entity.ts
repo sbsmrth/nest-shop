@@ -10,7 +10,9 @@ export class ProductImage {
   url: string;
 
   // Many images can belong to one single product
-  @ManyToOne(() => Product, (product) => product.images)
+  @ManyToOne(() => Product, (product) => product.images, {
+    onDelete: 'CASCADE', // If a product is deleted, its images are also deleted
+  })
   product: Product;
   // this is not a field in the database, it is a relation
 }
