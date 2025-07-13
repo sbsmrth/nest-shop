@@ -9,6 +9,9 @@ export class ProductImage {
   @Column('text')
   url: string;
 
+  @Column('text')
+  public_id: string;
+
   // Many images can belong to one single product
   @ManyToOne(() => Product, (product) => product.images, {
     onDelete: 'CASCADE', // If a product is deleted, its images are also deleted

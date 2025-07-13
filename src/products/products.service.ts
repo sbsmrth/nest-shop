@@ -9,10 +9,11 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
-import { DataSource, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { PaginationDto } from '../common/dtos/pagination.dto';
 import { validate as isUUID } from 'uuid';
 import { ProductImage } from './entities';
+import { FilesService } from '../files/files.service';
 
 @Injectable()
 export class ProductsService {
@@ -24,22 +25,34 @@ export class ProductsService {
     @InjectRepository(ProductImage)
     private readonly productImageRepository: Repository<ProductImage>,
 
-    private readonly dataSource: DataSource,
+    private readonly filesService: FilesService,
   ) {}
-  async create(createProductDto: CreateProductDto) {
+  async create(
+    createProductDto: CreateProductDto,
+    files?: Array<Express.Multer.File>,
+  ) {
     try {
-      const { images = [], ...productDetails } = createProductDto;
+      let productImages: { secureUrl: string; publicId: string }[] = [];
+
+      if (files?.length) {
+        productImages = await this.filesService.uploadProductImages(files);
+      }
+
+      const { ...productDetails } = createProductDto;
 
       const product = this.productRepository.create({
         ...productDetails,
-        images: images.map((image) =>
-          this.productImageRepository.create({ url: image }),
+        images: productImages.map(({ secureUrl, publicId }) =>
+          this.productImageRepository.create({
+            url: secureUrl,
+            public_id: publicId,
+          }),
         ), // it links images to the product automatically
       }); // Create a new product instance
 
       await this.productRepository.save(product); // Save the product and its images to the database
 
-      return { ...product, images }; // Return the product with its images
+      return { ...product, images: productImages }; // Return the product with its images
     } catch (error) {
       this.handleDBExceptions(error);
     }
@@ -84,43 +97,67 @@ export class ProductsService {
     return product;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto) {
-    const { images, ...productDetails } = updateProductDto;
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+    files?: Array<Express.Multer.File>,
+  ) {
+    const { ...productDetails } = updateProductDto;
 
+    const product = await this.findOne(id); // find the product by id
+
+    this.productRepository.merge(product, productDetails); // merge the product with the new data
+
+    /*
     const product = await this.productRepository.preload({
       id,
       ...productDetails,
     }); // find the product by id and update it with the new data, doesn't include relations
-
-    if (!product) {
-      throw new NotFoundException(`Product with id '${id}' not found`);
-    }
+    */
 
     // Query runners are used to manage transactions and execute different queries
-    const queryRunner = this.dataSource.createQueryRunner();
-
-    await queryRunner.connect(); // connect to the database
-
-    await queryRunner.startTransaction();
+    // const queryRunner = this.dataSource.createQueryRunner();
 
     try {
-      if (images) {
-        await queryRunner.manager.delete(ProductImage, { product: { id } }); // delete all images of the product
+      // Remove images if they are in the updateProductDto
 
-        product.images = images.map((image) =>
-          this.productImageRepository.create({ url: image }),
-        ); // create new images for the product
+      const imagesToDelete = updateProductDto.imagesToDelete || [];
+      const productImages = product.images || [];
+
+      if (imagesToDelete.length > 0) {
+        await this.filesService.removeProductImages(imagesToDelete); // remove images from cloudinary
+
+        const deleteDbImages = imagesToDelete.map((publicId) =>
+          this.productImageRepository.delete({ public_id: publicId }),
+        ); // delete images from the database
+
+        await Promise.all(deleteDbImages);
       }
 
-      await queryRunner.manager.save(product); // try to save the product with the new images (not DB yet)
-      await queryRunner.commitTransaction(); // commit the transaction if everything is ok (save to DB)
-      await queryRunner.release();
+      const updatedImages = productImages.filter(
+        (image) => !imagesToDelete.includes(image.public_id),
+      );
 
-      return this.findOne(id); // to return also the images
+      let newProductImages: { secureUrl: string; publicId: string }[] = [];
+
+      if (files?.length) {
+        newProductImages = await this.filesService.uploadProductImages(files);
+      }
+
+      product.images =
+        updatedImages.concat(
+          newProductImages.map(({ secureUrl, publicId }) =>
+            this.productImageRepository.create({
+              url: secureUrl,
+              public_id: publicId,
+            }),
+          ),
+        ) ?? [];
+
+      const updatedProduct = await this.productRepository.save(product); // Save the product and its images to the database
+
+      return updatedProduct;
     } catch (error) {
-      await queryRunner.rollbackTransaction(); // rollback the transaction if something goes wrong
-      await queryRunner.release();
-
       this.handleDBExceptions(error);
     }
   }

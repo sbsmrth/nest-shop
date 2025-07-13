@@ -17,7 +17,7 @@ export class SeedService {
     const initProducts = initialData.products;
 
     const insertPromises = initProducts.map((product) =>
-      this.productsService.create(product),
+      this.productsService.create(product, []),
     );
 
     await Promise.all(insertPromises);

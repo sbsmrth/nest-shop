@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsIn,
@@ -16,6 +17,7 @@ export class CreateProductDto {
 
   @IsNumber()
   @IsPositive()
+  @Type(() => Number) // Transfor string to number
   price: number;
 
   @IsString()
@@ -43,8 +45,8 @@ export class CreateProductDto {
   @IsOptional()
   tags?: string[];
 
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  images?: string[];
+  // @IsArray()
+  // @IsString({ each: true })
+  // @IsOptional()
+  // images?: string[];
 }
