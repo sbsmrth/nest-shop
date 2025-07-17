@@ -1,6 +1,9 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto, LoginUserDto } from './dto';
+import { GetUser } from './decorators/get-user.decorator';
+import { User } from './entities/user.entity';
+import { Auth } from './decorators';
 
 @Controller('auth')
 export class AuthController {
@@ -16,23 +19,21 @@ export class AuthController {
     return this.authService.signIn(loginUserDto);
   }
 
-  // @Get()
-  // findAll() {
-  //   return this.authService.findAll();
-  // }
+  @Get('private-route')
+  // @SetMetadata('roles', ['admin', 'user'])
+  // @RoleProtected(ValidRoles.admin)
+  // @UseGuards(AuthGuard(), UserRoleGuard) // This will use the JwtStrategy defined in the AuthModule
+  // Will look first if the JWT is not just valid but authentic and therefore call the validate method in JwtStrategy
 
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.authService.findOne(+id);
-  // }
-
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-  //   return this.authService.update(+id, updateAuthDto);
-  // }
-
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.authService.remove(+id);
-  // }
+  // replace the previous decorators with decorator composition
+  @Auth()
+  privateRoute(@GetUser(['fullName', 'email']) user: User) {
+    // @GetUser is a property decorator, not generated with nest cli
+    console.log('Request data:', user); // This will log the user object returned by the JwtStrategy's validate method
+    return {
+      ok: true,
+      message: 'You have access to this private route',
+      user,
+    };
+  }
 }

@@ -38,7 +38,7 @@ export class AuthService {
 
       return {
         ...restUserData,
-        token: this.getJwtToken({ email: user.email }),
+        token: this.getJwtToken({ id: user.id }),
       };
     } catch (error) {
       this.handleDBErrors(error);
@@ -50,7 +50,7 @@ export class AuthService {
 
     const user = await this.userRepository.findOne({
       where: { email },
-      select: { email: true, password: true },
+      select: { email: true, password: true, id: true },
     });
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -60,7 +60,10 @@ export class AuthService {
     if (!isPasswordValid)
       throw new UnauthorizedException('Invalid credentials');
 
-    return { ...user, token: this.getJwtToken({ email }) };
+    // eslint-disable-next-line
+    const { password: hashedPassword, ...restUserData } = user;
+
+    return { ...restUserData, token: this.getJwtToken({ id: user.id }) };
   }
 
   // findAll() {
