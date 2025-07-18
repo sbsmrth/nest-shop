@@ -19,6 +19,12 @@ export class AuthController {
     return this.authService.signIn(loginUserDto);
   }
 
+  @Get('check-status')
+  @Auth()
+  checkAuthStatus(@GetUser() user: User) {
+    return this.authService.checkAuthStatus(user);
+  }
+
   @Get('private-route')
   // @SetMetadata('roles', ['admin', 'user'])
   // @RoleProtected(ValidRoles.admin)
