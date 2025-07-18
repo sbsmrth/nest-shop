@@ -3,10 +3,12 @@ import {
   BeforeUpdate,
   Column,
   Entity,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ProductImage } from './product-image.entity';
+import { User } from 'src/auth/entities/user.entity';
 
 @Entity({ name: 'products' }) // Explicitly set the table name to 'products'
 export class Product {
@@ -47,6 +49,9 @@ export class Product {
   // One product can have many images
   // {cascade: true} if a product is deleted, its images are also deleted
   // Indeed is preferred to avoid deleting products because of referential integrity issues
+
+  @ManyToOne(() => User, (user) => user.products, { eager: true })
+  user: User; // Many products can belong to one user
 
   @BeforeInsert()
   checkSlugBeforeInsert() {

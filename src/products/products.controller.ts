@@ -18,6 +18,9 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginationDto } from '../common/dtos/pagination.dto';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { Auth, GetUser } from 'src/auth/decorators';
+import { ValidRoles } from 'src/auth/interfaces';
+import { User } from 'src/auth/entities/user.entity';
 
 @Controller('products')
 export class ProductsController {
@@ -25,6 +28,7 @@ export class ProductsController {
 
   @Post()
   @UseInterceptors(FilesInterceptor('images', 5))
+  @Auth(ValidRoles.admin)
   create(
     @UploadedFiles(
       new ParseFilePipeBuilder()
@@ -42,8 +46,9 @@ export class ProductsController {
     )
     images: Array<Express.Multer.File>,
     @Body() createProductDto: CreateProductDto,
+    @GetUser() user: User,
   ) {
-    return this.productsService.create(createProductDto, images);
+    return this.productsService.create(createProductDto, user, images);
   }
 
   @Get()

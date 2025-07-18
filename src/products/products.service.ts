@@ -14,6 +14,7 @@ import { PaginationDto } from '../common/dtos/pagination.dto';
 import { validate as isUUID } from 'uuid';
 import { ProductImage } from './entities';
 import { FilesService } from '../files/files.service';
+import { User } from 'src/auth/entities/user.entity';
 
 @Injectable()
 export class ProductsService {
@@ -29,6 +30,7 @@ export class ProductsService {
   ) {}
   async create(
     createProductDto: CreateProductDto,
+    user: User,
     files?: Array<Express.Multer.File>,
   ) {
     try {
@@ -48,6 +50,7 @@ export class ProductsService {
             public_id: publicId,
           }),
         ), // it links images to the product automatically
+        user,
       }); // Create a new product instance
 
       await this.productRepository.save(product); // Save the product and its images to the database

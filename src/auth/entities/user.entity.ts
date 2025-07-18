@@ -1,8 +1,10 @@
+import { Product } from '../../products/entities';
 import {
   BeforeInsert,
   BeforeUpdate,
   Column,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -25,6 +27,9 @@ export class User {
 
   @Column('text', { array: true, default: ['user'] })
   roles: string[];
+
+  @OneToMany(() => Product, (product) => product.user) // The first parameter is where we point, and the second is the inverse side
+  products: Product[]; // One user can create many products
 
   @BeforeInsert()
   checkFieldsBeforeInsert() {
